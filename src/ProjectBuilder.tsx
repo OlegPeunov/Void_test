@@ -1,4 +1,4 @@
-import React from 'react'
+import { useState } from 'react'
 
 interface Service {
 id: number
@@ -19,32 +19,38 @@ const availableServices: Service[] = [
 ]
 
 export default function ProjectBuilder() {
-let selectedServices: ServiceItem[] = []
-let selectedServiceId: number | string = ''
-let quantity: number = 1
+const [selectedServices, setSelectedServices] = useState<ServiceItem[]>([])
+const [selectedServiceId, setSelectedServiceId] = useState<number | string>('')
+const [quantity, setQuantity] = useState('1')
 
-let totalPrice = 0
-for (const item of selectedServices) {
-totalPrice += item.service.price * item.quantity
-}
+const quantityToAdd = Number(quantity)
+const isQuantityValid = Number.isInteger(quantityToAdd) && quantityToAdd >= 1 && quantityToAdd <= 10
+const totalPrice = selectedServices.reduce(
+  (total, item) => total + item.service.price * item.quantity,
+  0,
+)
 
 function addService() {
 const service = availableServices.find(s => s.id === selectedServiceId)
-if (!service) return
+if (!service || !isQuantityValid) return
 
-const existing = selectedServices.find(item => item.service === service)
-if (existing) {
-existing.quantity += quantity
-} else {
-selectedServices.push({ service, quantity })
-}
+setSelectedServices(currentServices => {
+  const existing = currentServices.some(item => item.service.id === service.id)
+  if (existing) {
+    return currentServices.map(item =>
+      item.service.id === service.id
+        ? { ...item, quantity: item.quantity + quantityToAdd }
+        : item,
+    )
+  }
+  return [...currentServices, { service, quantity: quantityToAdd }]
+})
 }
 
-function removeService(item: ServiceItem) {
-const index = selectedServices.indexOf(item)
-if (index > -1) {
-selectedServices.splice(index, 1)
-}
+function removeService(serviceId: number) {
+setSelectedServices(currentServices =>
+  currentServices.filter(item => item.service.id !== serviceId),
+)
 }
 
 return (
@@ -54,7 +60,7 @@ return (
 <div className="add-service" style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>
 <select
 value={selectedServiceId}
-onChange={e => { selectedServiceId = Number(e.target.value) }}
+onChange={e => setSelectedServiceId(Number(e.target.value))}
 >
 <option value="" disabled>Выберите услугу</option>
 {availableServices.map(service => (
@@ -69,11 +75,11 @@ type="number"
 min={1}
 max={10}
 value={quantity}
-onChange={e => { quantity = Number(e.target.value) }}
+onChange={e => setQuantity(e.target.value)}
 style={{ width: 80, padding: '8px 12px' }}
 />
 
-<button onClick={addService} disabled={!selectedServiceId}>
+<button onClick={addService} disabled={!selectedServiceId || !isQuantityValid}>
 Добавить
 </button>
 </div>
@@ -99,7 +105,7 @@ style={{ width: 80, padding: '8px 12px' }}
 {(item.service.price * item.quantity).toLocaleString()} ₽
 </td>
 <td style={{ border: '1px solid #ddd', padding: 10 }}>
-<button onClick={() => removeService(item)}>Удалить</button>
+<button onClick={() => removeService(item.service.id)}>Удалить</button>
 </td>
 </tr>
 ))}
